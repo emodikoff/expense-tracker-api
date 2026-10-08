@@ -9,6 +9,10 @@ class Transaction(Base):
             "type IN ('income', 'expense')",
             name="check_transaction_type"
         ),
+        CheckConstraint(
+            "amount > 0",
+            name="check_transaction_amount_positive"
+        ),
     )
 
     id = Column(Integer, primary_key=True, index=True)
