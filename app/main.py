@@ -44,3 +44,28 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
     db.refresh(db_transaction)
 
     return db_transaction
+
+@app.put("/transactions/{transaction_id}", response_model=TransactionResponse)
+def update_transaction(
+        transaction_id: int,
+        transaction: TransactionCreate,
+        db: Session = Depends(get_db),
+):
+    db_transaction = (
+        db.query(TransactionModel)
+        .filter(TransactionModel.id == transaction_id)
+        .first()
+    )
+
+    if db_transaction is None:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    db_transaction.amount = transaction.amount
+    db_transaction.category = transaction.category
+    db_transaction.description = transaction.description
+    db_transaction.type = transaction.type
+
+    db.commit()
+    db.refresh(db_transaction)
+
+    return db_transaction
