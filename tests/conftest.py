@@ -4,8 +4,9 @@ from dotenv import load_dotenv
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.engine import make_url
 
-from app.database import Base, get_db
+from app.database import Base, get_db, DATABASE_URL
 from app.main import app
 
 import pytest
@@ -16,6 +17,14 @@ TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 
 if not TEST_DATABASE_URL:
     raise RuntimeError("TEST_DATABASE_URL is missing from environment")
+
+main_db = make_url(DATABASE_URL)
+test_db = make_url(TEST_DATABASE_URL)
+
+if main_db.set(password=None) == test_db.set(password=None):
+    raise RuntimeError(
+        "TEST_DATABASE_URL must point to a different database"
+    )
 
 test_engine = create_engine(TEST_DATABASE_URL)
 
