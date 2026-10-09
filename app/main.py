@@ -6,8 +6,11 @@ from app.database import get_db
 from app.models import Transaction as TransactionModel
 from app.models import Category as CategoryModel
 from typing import Literal
+from app.routers import auth
 
 app = FastAPI()
+
+app.include_router(auth.router)
 
 
 @app.get("/")
