@@ -219,3 +219,106 @@ def test_get_transactions_with_invalid_pagination(client):
     response = client.get(f"/transactions?skip=-1&limit=0")
 
     assert response.status_code == 422
+
+
+def test_filter_transaction_by_type(client):
+    client.post(
+        "/transactions",
+        json={
+            "amount": 50,
+            "category": "food",
+            "description": "Lunch",
+            "type": "expense",
+        },
+    )
+    client.post(
+        "/transactions",
+        json={
+            "amount": 2000,
+            "category": "salary",
+            "description": "Monthly salary",
+            "type": "income",
+        },
+    )
+
+    response = client.get(f"/transactions?type=expense")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["type"] == "expense"
+    assert data[0]["amount"] == 50
+
+
+def test_filter_transaction_by_category(client):
+    client.post(
+        "/transactions",
+        json={
+            "amount": 50,
+            "category": "food",
+            "description": "Lunch",
+            "type": "expense",
+        },
+    )
+    client.post(
+        "/transactions",
+        json={
+            "amount": 100,
+            "category": "transport",
+            "description": "Bus ticket",
+            "type": "expense",
+        }
+    )
+
+    response = client.get(f"/transactions?category=food")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["category"] == "food"
+    assert data[0]["amount"] == 50
+
+
+def test_filter_transaction_with_invalid_type(client):
+    response = client.get(f"/transactions?type=banana")
+
+    assert response.status_code == 422
+
+
+def test_filter_transaction_by_type_and_category(client):
+    client.post(
+        "/transactions",
+        json={
+            "amount": 50,
+            "category": "food",
+            "description": "Lunch",
+            "type": "expense",
+        },
+    )
+    client.post(
+        "/transactions",
+        json={
+            "amount": 2000,
+            "category": "salary",
+            "description": "Monthly salary",
+            "type": "income",
+        },
+    )
+    client.post(
+        "/transactions",
+        json={
+            "amount": 100,
+            "category": "food",
+            "description": "Food refund",
+            "type": "income",
+        },
+    )
+
+    response = client.get(f"/transactions?type=expense&category=food")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["type"] == "expense"
+    assert data[0]["category"] == "food"
+    assert data[0]["amount"] == 50

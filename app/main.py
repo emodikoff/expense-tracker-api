@@ -3,6 +3,7 @@ from app.schemas import TransactionCreate, TransactionResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Transaction as TransactionModel
+from typing import Literal
 
 app = FastAPI()
 
@@ -16,10 +17,20 @@ def root():
 def get_transactions(
         skip: int = Query(default=0, ge=0),
         limit: int = Query(default=10, ge=1, le=100),
+        type: Literal["income", "expense"] | None = None,
+        category: str | None = None,
         db: Session = Depends(get_db)
 ):
+    query = db.query(TransactionModel)
+
+    if type is not None:
+        query = query.filter(TransactionModel.type == type)
+
+    if category is not None:
+        query = query.filter(TransactionModel.category == category)
+
     return (
-        db.query(TransactionModel)
+        query
         .order_by(TransactionModel.id)
         .offset(skip)
         .limit(limit)
