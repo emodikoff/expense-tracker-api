@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from typing import Literal
 
 
@@ -27,3 +27,13 @@ class CategoryResponse(BaseModel):
     id: int
     name: str
     type: Literal["income", "expense"]
+
+
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=64)
+
+
+class UserResponse(BaseModel):
+    id: int
+    email: EmailStr
