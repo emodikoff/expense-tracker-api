@@ -193,3 +193,29 @@ def test_delete_nonexistent_transaction(client):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Transaction not found"
+
+
+def test_get_transaction_with_pagination(client):
+    for amount in (10, 20, 30):
+        client.post(
+            "/transactions",
+            json={
+                "amount": amount,
+                "category": "food",
+                "description": f"Transaction {amount}",
+                "type": "expense",
+            },
+        )
+
+    response = client.get(f"/transactions?skip=1&limit=1")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["amount"] == 20
+
+
+def test_get_transactions_with_invalid_pagination(client):
+    response = client.get(f"/transactions?skip=-1&limit=0")
+
+    assert response.status_code == 422

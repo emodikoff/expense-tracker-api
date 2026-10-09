@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Query
 from app.schemas import TransactionCreate, TransactionResponse
 from sqlalchemy.orm import Session
 from app.database import get_db
@@ -6,13 +6,26 @@ from app.models import Transaction as TransactionModel
 
 app = FastAPI()
 
+
 @app.get("/")
 def root():
     return {"message": "ExpenseTracker API is running"}
 
+
 @app.get("/transactions", response_model=list[TransactionResponse])
-def get_transactions(db: Session = Depends(get_db)):
-    return db.query(TransactionModel).all()
+def get_transactions(
+        skip: int = Query(default=0, ge=0),
+        limit: int = Query(default=10, ge=1, le=100),
+        db: Session = Depends(get_db)
+):
+    return (
+        db.query(TransactionModel)
+        .order_by(TransactionModel.id)
+        .offset(skip)
+        .limit(limit)
+        .all()
+    )
+
 
 @app.get("/transactions/{transaction_id}", response_model=TransactionResponse)
 def get_transaction(
@@ -30,6 +43,7 @@ def get_transaction(
 
     return db_transaction
 
+
 @app.post("/transactions", response_model=TransactionResponse)
 def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
     db_transaction = TransactionModel(
@@ -44,6 +58,7 @@ def create_transaction(transaction: TransactionCreate, db: Session = Depends(get
     db.refresh(db_transaction)
 
     return db_transaction
+
 
 @app.put("/transactions/{transaction_id}", response_model=TransactionResponse)
 def update_transaction(
@@ -69,6 +84,7 @@ def update_transaction(
     db.refresh(db_transaction)
 
     return db_transaction
+
 
 @app.delete("/transactions/{transaction_id}")
 def delete_transaction(
