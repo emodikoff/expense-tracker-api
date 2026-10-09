@@ -25,11 +25,25 @@ class Transaction(Base):
     description = Column(String, nullable=False)
     type = Column(String, nullable=False)
 
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    user = relationship("User", back_populates="transactions")
+
 
 class User(Base):
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True)
+
+    transactions = relationship(
+        "Transaction",
+        back_populates="user",
+    )
 
     email = Column(
         String(255),

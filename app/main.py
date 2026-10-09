@@ -1,12 +1,16 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
-from app.schemas import TransactionCreate, TransactionResponse, TransactionSummary, CategoryResponse
+from typing import Literal
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
+
+from app.schemas import TransactionCreate, TransactionResponse, TransactionSummary, CategoryResponse
 from app.database import get_db
+from app.models import User
 from app.models import Transaction as TransactionModel
 from app.models import Category as CategoryModel
-from typing import Literal
 from app.routers import auth
+from app.dependencies import get_current_user
 
 app = FastAPI()
 
@@ -32,16 +36,25 @@ def get_categories(
 
 
 @app.get("/transactions/summary", response_model=TransactionSummary)
-def get_transaction_summary(db: Session = Depends(get_db)):
+def get_transaction_summary(
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)
+):
     total_income = (
         db.query(func.coalesce(func.sum(TransactionModel.amount), 0))
-        .filter(TransactionModel.type == "income")
+        .filter(
+            TransactionModel.type == "income",
+            TransactionModel.user_id == current_user.id,
+        )
         .scalar()
     )
 
     total_expenses = (
         db.query(func.coalesce(func.sum(TransactionModel.amount), 0))
-        .filter(TransactionModel.type == "expense")
+        .filter(
+            TransactionModel.type == "expense",
+            TransactionModel.user_id == current_user.id,
+        )
         .scalar()
     )
 
@@ -58,9 +71,12 @@ def get_transactions(
         limit: int = Query(default=10, ge=1, le=100),
         type: Literal["income", "expense"] | None = None,
         category: str | None = None,
-        db: Session = Depends(get_db)
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
 ):
-    query = db.query(TransactionModel)
+    query = db.query(TransactionModel).filter(
+        TransactionModel.user_id == current_user.id
+    )
 
     if type is not None:
         query = query.filter(TransactionModel.type == type)
@@ -81,26 +97,38 @@ def get_transactions(
 def get_transaction(
         transaction_id: int,
         db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
 ):
     db_transaction = (
         db.query(TransactionModel)
-        .filter(TransactionModel.id == transaction_id)
+        .filter(
+            TransactionModel.id == transaction_id,
+            TransactionModel.user_id == current_user.id,
+        )
         .first()
     )
 
     if db_transaction is None:
-        raise HTTPException(status_code=404, detail="Transaction not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Transaction not found",
+        )
 
     return db_transaction
 
 
 @app.post("/transactions", response_model=TransactionResponse)
-def create_transaction(transaction: TransactionCreate, db: Session = Depends(get_db)):
+def create_transaction(
+        transaction: TransactionCreate,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+):
     db_transaction = TransactionModel(
         amount=transaction.amount,
         category=transaction.category,
         description=transaction.description,
         type=transaction.type,
+        user_id=current_user.id,
     )
 
     db.add(db_transaction)
@@ -115,10 +143,14 @@ def update_transaction(
         transaction_id: int,
         transaction: TransactionCreate,
         db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
 ):
     db_transaction = (
         db.query(TransactionModel)
-        .filter(TransactionModel.id == transaction_id)
+        .filter(
+            TransactionModel.id == transaction_id,
+            TransactionModel.user_id == current_user.id,
+        )
         .first()
     )
 
@@ -140,10 +172,14 @@ def update_transaction(
 def delete_transaction(
         transaction_id: int,
         db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
 ):
     db_transaction = (
         db.query(TransactionModel)
-        .filter(TransactionModel.id == transaction_id)
+        .filter(
+            TransactionModel.id == transaction_id,
+            TransactionModel.user_id == current_user.id,
+        )
         .first()
     )
 

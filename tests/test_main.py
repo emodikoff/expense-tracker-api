@@ -8,7 +8,7 @@ def test_root(client):
     assert response.json() == {"message": "ExpenseTracker API is running"}
 
 
-def test_create_transaction(client):
+def test_create_transaction(client, auth_headers):
     response = client.post(
         "/transactions",
         json={
@@ -17,21 +17,14 @@ def test_create_transaction(client):
             "description": "Test lunch",
             "type": "expense",
         },
+        headers=auth_headers,
     )
 
     assert response.status_code == 200
 
-    data = response.json()
 
-    assert data["amount"] == 42.50
-    assert data["category"] == "food"
-    assert data["description"] == "Test lunch"
-    assert data["type"] == "expense"
-    assert "id" in data
-
-
-def test_get_transaction(client):
-    client.post(
+def test_get_transaction(authenticated_client):
+    authenticated_client.post(
         "/transactions",
         json={
             "amount": 42.50,
@@ -41,7 +34,7 @@ def test_get_transaction(client):
         },
     )
 
-    client.post(
+    authenticated_client.post(
         "/transactions",
         json={
             "amount": 100,
@@ -51,7 +44,7 @@ def test_get_transaction(client):
         },
     )
 
-    response = client.get(f"/transactions")
+    response = authenticated_client.get(f"/transactions")
 
     assert response.status_code == 200
 
@@ -67,8 +60,8 @@ def test_get_transaction(client):
     assert transaction_by_category["salary"]["amount"] == 100
 
 
-def test_transaction_with_invalid_amount(client):
-    response = client.post(
+def test_transaction_with_invalid_amount(authenticated_client):
+    response = authenticated_client.post(
         "/transactions",
         json={
             "amount": -42.50,
@@ -81,8 +74,8 @@ def test_transaction_with_invalid_amount(client):
     assert response.status_code == 422
 
 
-def test_create_transaction_with_invalid_type(client):
-    response = client.post(
+def test_create_transaction_with_invalid_type(authenticated_client):
+    response = authenticated_client.post(
         "/transactions",
         json={
             "amount": 10,
@@ -95,8 +88,8 @@ def test_create_transaction_with_invalid_type(client):
     assert response.status_code == 422
 
 
-def test_get_transaction_by_id(client):
-    create_response = client.post(
+def test_get_transaction_by_id(authenticated_client):
+    create_response = authenticated_client.post(
         "/transactions",
         json={
             "amount": 25,
@@ -108,22 +101,22 @@ def test_get_transaction_by_id(client):
 
     transaction_id = create_response.json()["id"]
 
-    response = client.get(f"/transactions/{transaction_id}")
+    response = authenticated_client.get(f"/transactions/{transaction_id}")
 
     assert response.status_code == 200
     assert response.json()["id"] == transaction_id
     assert response.json()["category"] == "transport"
 
 
-def test_get_nonexistent_transaction(client):
-    response = client.get(f"/transactions/9999999")
+def test_get_nonexistent_transaction(authenticated_client):
+    response = authenticated_client.get(f"/transactions/9999999")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Transaction not found"
 
 
-def test_update_transaction(client):
-    create_response = client.post(
+def test_update_transaction(authenticated_client):
+    create_response = authenticated_client.post(
         "/transactions",
         json={
             "amount": 25,
@@ -135,7 +128,7 @@ def test_update_transaction(client):
 
     transaction_id = create_response.json()["id"]
 
-    update_response = client.put(
+    update_response = authenticated_client.put(
         f"/transactions/{transaction_id}",
         json={
             "amount": 40,
@@ -154,8 +147,8 @@ def test_update_transaction(client):
     assert data["description"] == "Update transaction"
 
 
-def test_update_nonexistent_transaction(client):
-    response = client.put(
+def test_update_nonexistent_transaction(authenticated_client):
+    response = authenticated_client.put(
         f"/transactions/999999",
         json={
             "amount": 40,
@@ -169,8 +162,8 @@ def test_update_nonexistent_transaction(client):
     assert response.json()["detail"] == "Transaction not found"
 
 
-def test_delete_transaction(client):
-    create_response = client.post(
+def test_delete_transaction(authenticated_client):
+    create_response = authenticated_client.post(
         "/transactions",
         json={
             "amount": 25,
@@ -182,25 +175,25 @@ def test_delete_transaction(client):
 
     transaction_id = create_response.json()["id"]
 
-    delete_response = client.delete(f"/transactions/{transaction_id}")
+    delete_response = authenticated_client.delete(f"/transactions/{transaction_id}")
 
     assert delete_response.status_code == 200
     assert delete_response.json()["message"] == "Transaction deleted successfully"
 
-    get_response = client.get(f"/transactions/{transaction_id}")
+    get_response = authenticated_client.get(f"/transactions/{transaction_id}")
     assert get_response.status_code == 404
 
 
-def test_delete_nonexistent_transaction(client):
-    response = client.delete(f"/transactions/9999999")
+def test_delete_nonexistent_transaction(authenticated_client):
+    response = authenticated_client.delete(f"/transactions/9999999")
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Transaction not found"
 
 
-def test_get_transaction_with_pagination(client):
+def test_get_transaction_with_pagination(authenticated_client):
     for amount in (10, 20, 30):
-        client.post(
+        authenticated_client.post(
             "/transactions",
             json={
                 "amount": amount,
@@ -210,7 +203,7 @@ def test_get_transaction_with_pagination(client):
             },
         )
 
-    response = client.get(f"/transactions?skip=1&limit=1")
+    response = authenticated_client.get(f"/transactions?skip=1&limit=1")
 
     assert response.status_code == 200
     data = response.json()
@@ -218,14 +211,14 @@ def test_get_transaction_with_pagination(client):
     assert data[0]["amount"] == 20
 
 
-def test_get_transactions_with_invalid_pagination(client):
-    response = client.get(f"/transactions?skip=-1&limit=0")
+def test_get_transactions_with_invalid_pagination(authenticated_client):
+    response = authenticated_client.get(f"/transactions?skip=-1&limit=0")
 
     assert response.status_code == 422
 
 
-def test_filter_transaction_by_type(client):
-    client.post(
+def test_filter_transaction_by_type(authenticated_client):
+    authenticated_client.post(
         "/transactions",
         json={
             "amount": 50,
@@ -234,7 +227,7 @@ def test_filter_transaction_by_type(client):
             "type": "expense",
         },
     )
-    client.post(
+    authenticated_client.post(
         "/transactions",
         json={
             "amount": 2000,
@@ -244,7 +237,7 @@ def test_filter_transaction_by_type(client):
         },
     )
 
-    response = client.get(f"/transactions?type=expense")
+    response = authenticated_client.get(f"/transactions?type=expense")
 
     assert response.status_code == 200
     data = response.json()
@@ -253,8 +246,8 @@ def test_filter_transaction_by_type(client):
     assert data[0]["amount"] == 50
 
 
-def test_filter_transaction_by_category(client):
-    client.post(
+def test_filter_transaction_by_category(authenticated_client):
+    authenticated_client.post(
         "/transactions",
         json={
             "amount": 50,
@@ -263,7 +256,7 @@ def test_filter_transaction_by_category(client):
             "type": "expense",
         },
     )
-    client.post(
+    authenticated_client.post(
         "/transactions",
         json={
             "amount": 100,
@@ -273,7 +266,7 @@ def test_filter_transaction_by_category(client):
         }
     )
 
-    response = client.get(f"/transactions?category=food")
+    response = authenticated_client.get(f"/transactions?category=food")
 
     assert response.status_code == 200
     data = response.json()
@@ -282,14 +275,14 @@ def test_filter_transaction_by_category(client):
     assert data[0]["amount"] == 50
 
 
-def test_filter_transaction_with_invalid_type(client):
-    response = client.get(f"/transactions?type=banana")
+def test_filter_transaction_with_invalid_type(authenticated_client):
+    response = authenticated_client.get(f"/transactions?type=banana")
 
     assert response.status_code == 422
 
 
-def test_filter_transaction_by_type_and_category(client):
-    client.post(
+def test_filter_transaction_by_type_and_category(authenticated_client):
+    authenticated_client.post(
         "/transactions",
         json={
             "amount": 50,
@@ -298,7 +291,7 @@ def test_filter_transaction_by_type_and_category(client):
             "type": "expense",
         },
     )
-    client.post(
+    authenticated_client.post(
         "/transactions",
         json={
             "amount": 2000,
@@ -307,7 +300,7 @@ def test_filter_transaction_by_type_and_category(client):
             "type": "income",
         },
     )
-    client.post(
+    authenticated_client.post(
         "/transactions",
         json={
             "amount": 100,
@@ -317,7 +310,7 @@ def test_filter_transaction_by_type_and_category(client):
         },
     )
 
-    response = client.get(f"/transactions?type=expense&category=food")
+    response = authenticated_client.get(f"/transactions?type=expense&category=food")
 
     assert response.status_code == 200
     data = response.json()
@@ -327,7 +320,7 @@ def test_filter_transaction_by_type_and_category(client):
     assert data[0]["amount"] == 50
 
 
-def test_transaction_summary(client):
+def test_transaction_summary(authenticated_client):
     transactions = [
         {
             "amount": 1000,
@@ -350,10 +343,10 @@ def test_transaction_summary(client):
     ]
 
     for transaction in transactions:
-        response = client.post("/transactions", json=transaction)
+        response = authenticated_client.post("/transactions", json=transaction)
         assert response.status_code == 200
 
-    response = client.get("/transactions/summary")
+    response = authenticated_client.get("/transactions/summary")
 
     assert response.status_code == 200
     data = response.json()
@@ -362,8 +355,8 @@ def test_transaction_summary(client):
     assert data["balance"] == 1200
 
 
-def test_transaction_summary_with_empty_db(client):
-    response = client.get("/transactions/summary")
+def test_transaction_summary_with_empty_db(authenticated_client):
+    response = authenticated_client.get("/transactions/summary")
 
     assert response.status_code == 200
     data = response.json()

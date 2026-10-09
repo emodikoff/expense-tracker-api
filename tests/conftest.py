@@ -8,6 +8,7 @@ from sqlalchemy.engine import make_url
 
 from app.database import Base, get_db, DATABASE_URL
 from app.main import app
+from app.security import create_access_token
 
 import pytest
 
@@ -72,3 +73,29 @@ def db_session():
         yield db
     finally:
         db.close()
+
+
+@pytest.fixture
+def auth_headers(client):
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": "testuser@example.com",
+            "password": "MySecurePassword123!",
+        },
+    )
+
+    assert response.status_code == 201
+
+    user_id = response.json()["id"]
+    token = create_access_token(user_id)
+
+    return {
+        "Authorization": f"Bearer {token}"
+    }
+
+
+@pytest.fixture
+def authenticated_client(client, auth_headers):
+    client.headers.update(auth_headers)
+    yield client

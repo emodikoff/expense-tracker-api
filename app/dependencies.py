@@ -26,6 +26,7 @@ def get_current_user(
             token,
             SECRET_KEY,
             algorithms=[ALGORITHM],
+            options={"require": ["exp", "sub"]},
         )
 
         user_id = payload.get("sub")
