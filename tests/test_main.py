@@ -322,3 +322,49 @@ def test_filter_transaction_by_type_and_category(client):
     assert data[0]["type"] == "expense"
     assert data[0]["category"] == "food"
     assert data[0]["amount"] == 50
+
+
+def test_transaction_summary(client):
+    transactions = [
+        {
+            "amount": 1000,
+            "category": "salary",
+            "description": "First salary",
+            "type": "income",
+        },
+        {
+            "amount": 500,
+            "category": "freelance",
+            "description": "Freelance work",
+            "type": "income",
+        },
+        {
+            "amount": 300,
+            "category": "food",
+            "description": "Groceries",
+            "type": "expense",
+        },
+    ]
+
+    for transaction in transactions:
+        response = client.post("/transactions", json=transaction)
+        assert response.status_code == 200
+
+    response = client.get("/transactions/summary")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_income"] == 1500
+    assert data["total_expenses"] == 300
+    assert data["balance"] == 1200
+
+
+def test_transaction_summary_with_empty_db(client):
+    response = client.get("/transactions/summary")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["total_income"] == 0
+    assert data["total_expenses"] == 0
+    assert data["balance"] == 0
+
