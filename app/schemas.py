@@ -21,3 +21,9 @@ class TransactionSummary(BaseModel):
     total_income: float
     total_expenses: float
     balance: float
+
+
+class CategoryResponse(BaseModel):
+    id: int
+    name: str
+    type: Literal["income", "expense"]

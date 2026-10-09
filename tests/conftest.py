@@ -63,3 +63,12 @@ def clean_test_database(setup_test_database):
 def client():
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture
+def db_session():
+    db = TestSessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
