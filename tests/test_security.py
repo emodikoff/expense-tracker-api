@@ -53,7 +53,7 @@ def test_access_token_with_invalid_signature():
     with pytest.raises(jwt.InvalidSignatureError):
         jwt.decode(
             token,
-            "completely-different-secret-key",
+            "completely-different-secret-key-for-testing-only",
             algorithms=[ALGORITHM],
         )
 
