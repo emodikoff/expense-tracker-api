@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Numeric, CheckConstraint, DateTime
+from sqlalchemy import Column, Integer, String, Numeric, CheckConstraint, DateTime, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import text as sa_text
+from sqlalchemy.orm import relationship
 from app.database import Base
 
 
@@ -46,3 +48,47 @@ class User(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
+    categories = relationship("Category", back_populates="user")
+
+
+class Category(Base):
+    __tablename__ = "categories"
+
+    __table_args__ = (
+        CheckConstraint(
+            "type IN ('income', 'expense')",
+            name="check_category_type"
+        ),
+        UniqueConstraint(
+            "user_id", "name", "type",
+            name="uq_category_user_name_type"
+        ),
+        Index(
+            "uq_global_category_name_type",
+            "name", "type",
+            unique=True,
+            postgresql_where=sa_text("user_id IS NULL"),
+        )
+    )
+
+    id = Column(Integer, primary_key=True)
+
+    name = Column(String(100), nullable=False)
+
+    type = Column(String(20), nullable=False)
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    user = relationship("User", back_populates="categories")
