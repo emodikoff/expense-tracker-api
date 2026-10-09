@@ -1,3 +1,4 @@
+import json
 from zoneinfo import reset_tzpath
 
 
@@ -123,3 +124,32 @@ def test_update_nonexistent_transaction(client):
 
     assert response.status_code == 404
     assert response.json()["detail"] == "Transaction not found"
+
+def test_delete_transaction(client):
+    create_response = client.post(
+        "/transactions",
+        json={
+            "amount": 25,
+            "category": "transport",
+            "description": "Bus ticket",
+            "type": "expense",
+        },
+    )
+
+    transaction_id = create_response.json()["id"]
+
+    delete_response = client.delete(f"/transactions/{transaction_id}")
+
+    assert delete_response.status_code == 200
+    assert delete_response.json()["message"] == "Transaction deleted successfully"
+
+    get_response = client.get(f"/transactions/{transaction_id}")
+    assert get_response.status_code == 404
+
+def test_delete_nonexistent_transaction(client):
+    response = client.delete(f"/transactions/9999999")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Transaction not found"
+
+
