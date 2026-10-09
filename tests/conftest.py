@@ -10,7 +10,6 @@ from app.main import app
 
 import pytest
 
-
 load_dotenv()
 
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
@@ -26,12 +25,14 @@ TestSessionLocal = sessionmaker(
     autocommit=False,
 )
 
+
 def override_get_db():
     db = TestSessionLocal()
     try:
         yield db
     finally:
         db.close()
+
 
 app.dependency_overrides[get_db] = override_get_db
 
@@ -41,6 +42,13 @@ def setup_test_database():
     Base.metadata.create_all(bind=test_engine)
     yield
     Base.metadata.drop_all(bind=test_engine)
+
+
+@pytest.fixture(autouse=True)
+def clean_test_database(setup_test_database):
+    Base.metadata.drop_all(bind=test_engine)
+    Base.metadata.create_all(bind=test_engine)
+
 
 @pytest.fixture
 def client():
