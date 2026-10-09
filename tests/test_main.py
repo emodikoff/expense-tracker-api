@@ -50,3 +50,28 @@ def test_create_transaction_with_invalid_type(client):
     )
 
     assert response.status_code == 422
+
+def test_get_transaction_by_id(client):
+    create_response = client.post(
+        "/transactions",
+        json={
+            "amount": 25,
+            "category": "transport",
+            "description": "Bus ticket",
+            "type": "expense",
+        },
+    )
+
+    transaction_id = create_response.json()["id"]
+
+    response = client.get(f"/transactions/{transaction_id}")
+
+    assert response.status_code == 200
+    assert response.json()["id"] == transaction_id
+    assert response.json()["category"] == "transport"
+
+def test_get_nonexistent_transaction(client):
+    response = client.get(f"/transactions/9999999")
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Transaction not found"
