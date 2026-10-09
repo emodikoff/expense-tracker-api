@@ -1,11 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordRequestForm
+
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from app.database import get_db
 from app.models import User
-from app.schemas import UserCreate, UserResponse
-from app.security import hash_password
+from app.schemas import UserCreate, UserResponse, TokenResponse
+from app.security import hash_password, verify_password, create_access_token
 
 router = APIRouter(
     prefix="/auth",
@@ -51,3 +53,34 @@ def register_user(
     db.refresh(db_user)
 
     return db_user
+
+
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+)
+def login_user(
+        form_data: OAuth2PasswordRequestForm = Depends(),
+        db: Session = Depends(get_db),
+):
+    email = form_data.username.strip().lower()
+
+    db_user = (
+        db.query(User)
+        .filter(User.email == email)
+        .first()
+    )
+
+    if db_user is None or not verify_password(
+            form_data.password,
+            db_user.hashed_password,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    access_token = create_access_token(db_user.id)
+
+    return TokenResponse(access_token=access_token)

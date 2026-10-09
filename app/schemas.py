@@ -37,3 +37,8 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: int
     email: EmailStr
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
