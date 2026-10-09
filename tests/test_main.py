@@ -1,3 +1,6 @@
+from app.models import Category, User
+
+
 def test_root(client):
     response = client.get("/")
 
@@ -368,3 +371,81 @@ def test_transaction_summary_with_empty_db(client):
     assert data["total_expenses"] == 0
     assert data["balance"] == 0
 
+
+def test_get_categories(client):
+    response = client.get("/categories")
+
+    assert response.status_code == 200
+    assert response.json() == []
+
+
+def test_get_system_categories(client, db_session):
+    categories = [
+        Category(name='Food', type='expense', user_id=None),
+        Category(name='Salary', type='income', user_id=None),
+    ]
+
+    db_session.add_all(categories)
+    db_session.commit()
+
+    response = client.get("/categories")
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert len(data) == 2
+    assert [category["name"] for category in data] == ["Food", "Salary"]
+
+
+def test_get_categories_filtered_by_type(client, db_session):
+    categories = [
+        Category(name='Food', type='expense', user_id=None),
+        Category(name='Transport', type='expense', user_id=None),
+        Category(name='Salary', type='income', user_id=None),
+    ]
+
+    db_session.add_all(categories)
+    db_session.commit()
+
+    expense_response = client.get("/categories?type=expense")
+
+    assert expense_response.status_code == 200
+    expense_data = expense_response.json()
+
+    assert len(expense_data) == 2
+    assert [category["name"] for category in expense_data] == ["Food", "Transport"]
+
+    income_response = client.get("/categories?type=income")
+
+    assert income_response.status_code == 200
+    income_data = income_response.json()
+
+    assert len(income_data) == 1
+    assert income_data[0]["name"] == "Salary"
+
+
+def test_get_categories_excludes_user_categories(client, db_session):
+    user = User(
+        email="test@exapmle.com",
+        hashed_password="dummy_hash",
+    )
+
+    db_session.add(user)
+    db_session.flush()
+
+    categories = [
+        Category(name='Food', type='expense', user_id=None),
+        Category(name='Gaming', type='expense', user_id=user.id),
+    ]
+
+    db_session.add_all(categories)
+    db_session.commit()
+
+    response = client.get("/categories")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data) == 1
+    assert data[0]["name"] == "Food"

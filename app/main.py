@@ -1,9 +1,10 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
-from app.schemas import TransactionCreate, TransactionResponse, TransactionSummary
+from app.schemas import TransactionCreate, TransactionResponse, TransactionSummary, CategoryResponse
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Transaction as TransactionModel
+from app.models import Category as CategoryModel
 from typing import Literal
 
 app = FastAPI()
@@ -12,6 +13,19 @@ app = FastAPI()
 @app.get("/")
 def root():
     return {"message": "ExpenseTracker API is running"}
+
+
+@app.get("/categories", response_model=list[CategoryResponse])
+def get_categories(
+        type: Literal["income", "expense"] | None = None,
+        db: Session = Depends(get_db),
+):
+    query = db.query(CategoryModel).filter(CategoryModel.user_id.is_(None))
+
+    if type is not None:
+        query = query.filter(CategoryModel.type == type)
+
+    return query.order_by(CategoryModel.name).all()
 
 
 @app.get("/transactions/summary", response_model=TransactionSummary)
@@ -33,6 +47,7 @@ def get_transaction_summary(db: Session = Depends(get_db)):
         "total_expenses": total_expenses,
         "balance": total_income - total_expenses,
     }
+
 
 @app.get("/transactions", response_model=list[TransactionResponse])
 def get_transactions(
