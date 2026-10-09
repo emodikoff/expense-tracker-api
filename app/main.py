@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
-from app.schemas import TransactionCreate, TransactionResponse
+from app.schemas import TransactionCreate, TransactionResponse, TransactionSummary
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import Transaction as TransactionModel
@@ -12,6 +13,26 @@ app = FastAPI()
 def root():
     return {"message": "ExpenseTracker API is running"}
 
+
+@app.get("/transactions/summary", response_model=TransactionSummary)
+def get_transaction_summary(db: Session = Depends(get_db)):
+    total_income = (
+        db.query(func.coalesce(func.sum(TransactionModel.amount), 0))
+        .filter(TransactionModel.type == "income")
+        .scalar()
+    )
+
+    total_expenses = (
+        db.query(func.coalesce(func.sum(TransactionModel.amount), 0))
+        .filter(TransactionModel.type == "expense")
+        .scalar()
+    )
+
+    return {
+        "total_income": total_income,
+        "total_expenses": total_expenses,
+        "balance": total_income - total_expenses,
+    }
 
 @app.get("/transactions", response_model=list[TransactionResponse])
 def get_transactions(
