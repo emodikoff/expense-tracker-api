@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Numeric, CheckConstraint, DateTime, ForeignKey, UniqueConstraint, Index
+from sqlalchemy import Column, Integer, String, Numeric, CheckConstraint, DateTime, ForeignKey, UniqueConstraint, Index, \
+    func
 from sqlalchemy import text as sa_text
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -74,15 +75,20 @@ class Category(Base):
             "type IN ('income', 'expense')",
             name="check_category_type"
         ),
-        UniqueConstraint(
-            "user_id", "name", "type",
-            name="uq_category_user_name_type"
-        ),
         Index(
             "uq_global_category_name_type",
-            "name", "type",
+            sa_text("lower(name)"),
+            "type",
             unique=True,
             postgresql_where=sa_text("user_id IS NULL"),
+        ),
+        Index(
+            "uq_category_user_lower_name_type",
+            "user_id",
+            sa_text("lower(name)"),
+            "type",
+            unique=True,
+            postgresql_where=sa_text("user_id IS NOT NULL"),
         )
     )
 

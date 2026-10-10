@@ -365,14 +365,14 @@ def test_transaction_summary_with_empty_db(authenticated_client):
     assert data["balance"] == 0
 
 
-def test_get_categories(client):
-    response = client.get("/categories")
+def test_get_categories(authenticated_client):
+    response = authenticated_client.get("/categories")
 
     assert response.status_code == 200
     assert response.json() == []
 
 
-def test_get_system_categories(client, db_session):
+def test_get_system_categories(authenticated_client, db_session):
     categories = [
         Category(name='Food', type='expense', user_id=None),
         Category(name='Salary', type='income', user_id=None),
@@ -381,7 +381,7 @@ def test_get_system_categories(client, db_session):
     db_session.add_all(categories)
     db_session.commit()
 
-    response = client.get("/categories")
+    response = authenticated_client.get("/categories")
 
     assert response.status_code == 200
 
@@ -391,7 +391,7 @@ def test_get_system_categories(client, db_session):
     assert [category["name"] for category in data] == ["Food", "Salary"]
 
 
-def test_get_categories_filtered_by_type(client, db_session):
+def test_get_categories_filtered_by_type(authenticated_client, db_session):
     categories = [
         Category(name='Food', type='expense', user_id=None),
         Category(name='Transport', type='expense', user_id=None),
@@ -401,7 +401,7 @@ def test_get_categories_filtered_by_type(client, db_session):
     db_session.add_all(categories)
     db_session.commit()
 
-    expense_response = client.get("/categories?type=expense")
+    expense_response = authenticated_client.get("/categories?type=expense")
 
     assert expense_response.status_code == 200
     expense_data = expense_response.json()
@@ -409,7 +409,7 @@ def test_get_categories_filtered_by_type(client, db_session):
     assert len(expense_data) == 2
     assert [category["name"] for category in expense_data] == ["Food", "Transport"]
 
-    income_response = client.get("/categories?type=income")
+    income_response = authenticated_client.get("/categories?type=income")
 
     assert income_response.status_code == 200
     income_data = income_response.json()
@@ -418,7 +418,7 @@ def test_get_categories_filtered_by_type(client, db_session):
     assert income_data[0]["name"] == "Salary"
 
 
-def test_get_categories_excludes_user_categories(client, db_session):
+def test_get_categories_excludes_user_categories(authenticated_client, db_session):
     user = User(
         email="test@exapmle.com",
         hashed_password="dummy_hash",
@@ -435,7 +435,7 @@ def test_get_categories_excludes_user_categories(client, db_session):
     db_session.add_all(categories)
     db_session.commit()
 
-    response = client.get("/categories")
+    response = authenticated_client.get("/categories")
 
     assert response.status_code == 200
     data = response.json()

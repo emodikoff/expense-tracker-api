@@ -1,10 +1,11 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
 from typing import Literal
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
-from app.schemas import TransactionCreate, TransactionResponse, TransactionSummary, CategoryResponse
+from app.schemas import TransactionCreate, TransactionResponse, TransactionSummary, CategoryResponse, CategoryCreate
 from app.database import get_db
 from app.models import User
 from app.models import Transaction as TransactionModel
@@ -26,13 +27,62 @@ def root():
 def get_categories(
         type: Literal["income", "expense"] | None = None,
         db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
 ):
-    query = db.query(CategoryModel).filter(CategoryModel.user_id.is_(None))
+    query = db.query(CategoryModel).filter(
+        or_(CategoryModel.user_id.is_(None),
+            CategoryModel.user_id == current_user.id)
+    )
 
     if type is not None:
         query = query.filter(CategoryModel.type == type)
 
     return query.order_by(CategoryModel.name).all()
+
+
+@app.post("/categories", response_model=CategoryResponse, status_code=201)
+def create_category(
+        category: CategoryCreate,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+):
+    db_category = CategoryModel(
+        name=category.name,
+        type=category.type,
+        user_id=current_user.id,
+    )
+
+    db.add(db_category)
+
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+
+        sqlstate = getattr(exc.orig, "sqlstate", None)
+        constraint_name = getattr(
+            getattr(exc.orig, "diag", None),
+            "constraint_name",
+            None
+        )
+
+        if (
+            sqlstate == "23505"
+            and constraint_name == "uq_category_user_lower_name_type"
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="Category already exists",
+            )
+
+        raise HTTPException(
+            status_code=409,
+            detail="Category already exists",
+        )
+
+    db.refresh(db_category)
+
+    return db_category
 
 
 @app.get("/transactions/summary", response_model=TransactionSummary)

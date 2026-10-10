@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Literal
 
 
@@ -42,3 +42,18 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class CategoryCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    type: Literal["income", "expense"]
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        name = value.strip()
+
+        if not name:
+            raise ValueError("Category name cannot be empty")
+
+        return name
