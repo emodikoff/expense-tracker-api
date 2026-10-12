@@ -275,3 +275,194 @@ def test_category_name_whitespace_normalization(authenticated_client):
     )
 
     assert invalid_response.status_code == 422
+
+
+def test_update_own_category(authenticated_client, db_session):
+    create_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert create_response.status_code == 201
+
+    category_id = create_response.json()["id"]
+
+    original_category = db_session.get(Category, category_id)
+    original_user_id = original_category.user_id
+
+    update_response = authenticated_client.put(
+        f"/categories/{category_id}",
+        json={
+            "name": "Martial Arts",
+            "type": "expense",
+        },
+    )
+
+    assert update_response.status_code == 200
+
+    data = update_response.json()
+
+    assert data["id"] == category_id
+    assert data["name"] == "Martial Arts"
+    assert data["type"] == "expense"
+
+    db_session.expire_all()
+
+    update_category = db_session.get(Category, category_id)
+
+    assert update_category is not None
+    assert update_category.name == "Martial Arts"
+    assert update_category.user_id == original_user_id
+
+
+def test_cannot_update_another_user_category(client, db_session, authenticated_client):
+    # Alice ceates a category
+    create_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert create_response.status_code == 201
+
+    category_id = create_response.json()["id"]
+
+    # Bob registers
+    register_response = authenticated_client.post(
+        "/auth/register",
+        json={
+            "email": "bob@example.com",
+            "password": "SecurePassword123!",
+        },
+    )
+
+    assert register_response.status_code == 201
+
+    # Bob logs in
+    login_response = authenticated_client.post(
+        "/auth/login",
+        data={
+            "username": "bob@example.com",
+            "password": "SecurePassword123!",
+        },
+    )
+
+    assert login_response.status_code == 200
+
+    bob_token = login_response.json()["access_token"]
+
+    # Bob attempts to update Alice's category
+    update_response = authenticated_client.put(
+        f"/categories/{category_id}",
+        headers={"Authorization": f"Bearer {bob_token}"
+                 },
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert update_response.status_code == 404
+    assert update_response.json()["detail"] == "Category not found"
+
+    # Verify Alice's category was not modified
+    db_session.expire_all()
+
+    category = db_session.get(Category, category_id)
+
+    assert category is not None
+    assert category.name == "Muay Thai"
+
+
+def test_cannot_update_global_category(authenticated_client, db_session):
+    global_category = Category(
+        name="Global food",
+        type="expense",
+        user_id=None
+    )
+
+    db_session.add(global_category)
+    db_session.commit()
+    db_session.refresh(global_category)
+
+    category_id = global_category.id
+
+    response = authenticated_client.put(
+        f"/categories/{category_id}",
+        json={
+            "name": "Modified food",
+            "type": "income",
+        },
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Category not found"
+
+    db_session.expire_all()
+
+    category = db_session.get(Category, category_id)
+
+    assert category is not None
+    assert category.name == "Global food"
+    assert category.type == "expense"
+    assert category.user_id is None
+
+
+def test_update_category_duplicate_name(authenticated_client, db_session):
+    first_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert first_response.status_code == 201
+
+    second_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Gym",
+            "type": "expense",
+        },
+    )
+
+    assert second_response.status_code == 201
+
+    gym_category_id = second_response.json()["id"]
+
+    update_response = authenticated_client.put(
+        f"/categories/{gym_category_id}",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert update_response.status_code == 409
+    assert update_response.json()["detail"] == "Category already exists"
+
+    db_session.expire_all()
+
+    gym_category = db_session.get(Category, gym_category_id)
+
+    assert gym_category is not None
+    assert gym_category.name == "Gym"
+    assert gym_category.type == "expense"
+
+
+def test_update_category_without_authentication(client):
+    response = client.put(
+        "/categories/999999999",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert response.status_code == 401

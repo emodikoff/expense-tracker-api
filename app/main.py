@@ -67,8 +67,8 @@ def create_category(
         )
 
         if (
-            sqlstate == "23505"
-            and constraint_name == "uq_category_user_lower_name_type"
+                sqlstate == "23505"
+                and constraint_name == "uq_category_user_lower_name_type"
         ):
             raise HTTPException(
                 status_code=409,
@@ -82,6 +82,60 @@ def create_category(
 
     db.refresh(db_category)
 
+    return db_category
+
+
+@app.put(
+    "/categories/{category_id}",
+    response_model=CategoryResponse
+)
+def update_category(
+        category_id: int,
+        category: CategoryCreate,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+):
+    db_category = (
+        db.query(CategoryModel)
+        .filter(
+            CategoryModel.id == category_id,
+            CategoryModel.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if db_category is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Category not found",
+        )
+
+    db_category.name = category.name
+    db_category.type = category.type
+
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+
+        sqlstate = getattr(exc.orig, "sqlstate", None)
+        constraint_name = getattr(
+            getattr(exc.orig, "diag", None),
+            "constraint_name",
+            None,
+        )
+
+        if (
+                sqlstate == "23505"
+                and constraint_name == "uq_category_user_lower_name_type"
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="Category already exists",
+            ) from exc
+        raise
+
+    db.refresh(db_category)
     return db_category
 
 
