@@ -466,3 +466,135 @@ def test_update_category_without_authentication(client):
     )
 
     assert response.status_code == 401
+
+
+def test_delete_own_category(authenticated_client, db_session):
+    create_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert create_response.status_code == 201
+
+    category_id = create_response.json()["id"]
+
+    delete_response = authenticated_client.delete(f"/categories/{category_id}")
+
+    assert delete_response.status_code == 204
+    assert delete_response.content == b""
+
+    db_session.expire_all()
+
+    deleted_category = db_session.get(Category, category_id)
+
+    assert deleted_category is None
+
+
+def test_delete_category_twice(authenticated_client):
+    create_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert create_response.status_code == 201
+
+    category_id = create_response.json()["id"]
+
+    first_delete = authenticated_client.delete(f"/categories/{category_id}")
+    assert first_delete.status_code == 204
+
+    second_delete = authenticated_client.delete(f"/categories/{category_id}")
+    assert second_delete.status_code == 404
+    assert second_delete.json()["detail"] == "Category not found"
+
+
+def test_cannot_delete_another_users_category(client, authenticated_client, db_session):
+    # Alice creates category
+    create_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert create_response.status_code == 201
+    category_id = create_response.json()["id"]
+
+    # Bob registers
+    register_response = client.post(
+        "/auth/register",
+        json={
+            "email": "bob@example.com",
+            "password": "MySecurePassword123!",
+        },
+    )
+
+    assert register_response.status_code == 201
+
+    # Bob logs in
+    login_response = client.post(
+        "/auth/login",
+        data={
+            "username": "bob@example.com",
+            "password": "MySecurePassword123!",
+        },
+    )
+
+    assert login_response.status_code == 200
+    bob_token = login_response.json()["access_token"]
+
+    # Bob attempts to delete Alice category
+    delete_response = client.delete(
+        f"/categories/{category_id}",
+        headers={"Authorization": f"Bearer {bob_token}"}
+    )
+
+    assert delete_response.status_code == 404
+    assert delete_response.json()["detail"] == "Category not found"
+
+    db_session.expire_all()
+
+    category = db_session.get(Category, category_id)
+
+    assert category is not None
+    assert category.name == "Muay Thai"
+
+
+def test_cannot_delete_global_category(authenticated_client, db_session):
+    global_category = Category(
+        name="Global food",
+        type="expense",
+        user_id=None,
+    )
+
+    db_session.add(global_category)
+    db_session.commit()
+    db_session.refresh(global_category)
+
+    category_id = global_category.id
+
+    delete_response = authenticated_client.delete(f"/categories/{category_id}")
+
+    assert delete_response.status_code == 404
+    assert delete_response.json()["detail"] == "Category not found"
+
+    db_session.expire_all()
+
+    category = db_session.get(Category, category_id)
+
+    assert category is not None
+    assert category.name == "Global food"
+    assert category.user_id is None
+
+
+def test_delete_category_without_authorization(client):
+    response = client.delete("/categories/999999999")
+
+    assert response.status_code == 401

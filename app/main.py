@@ -85,10 +85,7 @@ def create_category(
     return db_category
 
 
-@app.put(
-    "/categories/{category_id}",
-    response_model=CategoryResponse
-)
+@app.put("/categories/{category_id}",response_model=CategoryResponse)
 def update_category(
         category_id: int,
         category: CategoryCreate,
@@ -137,6 +134,31 @@ def update_category(
 
     db.refresh(db_category)
     return db_category
+
+
+@app.delete("/categories/{category_id}", status_code=204)
+def delete_category(
+        category_id: int,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+):
+    category = (
+        db.query(CategoryModel)
+        .filter(
+            CategoryModel.id == category_id,
+            CategoryModel.user_id == current_user.id,
+        )
+        .first()
+    )
+
+    if category is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Category not found"
+        )
+
+    db.delete(category)
+    db.commit()
 
 
 @app.get("/transactions/summary", response_model=TransactionSummary)
