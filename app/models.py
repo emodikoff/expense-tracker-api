@@ -1,6 +1,9 @@
-from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Numeric, CheckConstraint, DateTime, ForeignKey, UniqueConstraint, Index, \
-    func
+from datetime import datetime, timezone, date
+from sqlalchemy import (Column, Integer,
+                        String, Numeric,
+                        CheckConstraint, DateTime,
+                        ForeignKey, UniqueConstraint,
+                        Index, func, Date)
 from sqlalchemy import text as sa_text
 from sqlalchemy.orm import relationship
 from app.database import Base
@@ -20,9 +23,21 @@ class Transaction(Base):
         ),
     )
 
-    id = Column(Integer, primary_key=True, index=True)
-    amount = Column(Numeric(10, 2), nullable=False)
-    category = Column(String, nullable=False)
+    id = Column(
+        Integer,
+        primary_key=True,
+        index=True)
+    amount = Column(
+        Numeric(10, 2),
+        nullable=False)
+    transaction_date = Column(
+        Date,
+        nullable=True,
+        default=date.today,
+    )
+    category = Column(
+        String,
+        nullable=False)
     category_id = Column(
         Integer,
         ForeignKey("categories.id",
@@ -31,8 +46,12 @@ class Transaction(Base):
         nullable=True,
         index=True
     )
-    description = Column(String, nullable=False)
-    type = Column(String, nullable=False)
+    description = Column(
+        String,
+        nullable=False)
+    type = Column(
+        String,
+        nullable=False)
 
     user_id = Column(
         Integer,

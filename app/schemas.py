@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
 from typing import Literal
+from datetime import date
 
 
 class TransactionCreate(BaseModel):
@@ -8,6 +9,7 @@ class TransactionCreate(BaseModel):
     category_id: int | None = Field(default=None, gt=0)
     description: str
     type: Literal["income", "expense"]
+    transaction_date: date | None = None
 
     @model_validator(mode="after")
     def validate_category(self):
@@ -27,6 +29,7 @@ class TransactionResponse(BaseModel):
     category_id: int | None
     description: str
     type: Literal["income", "expense"]
+    transaction_date: date | None
 
 
 class TransactionSummary(BaseModel):

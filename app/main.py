@@ -1,7 +1,6 @@
-from urllib import request
-
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, Path
 from typing import Literal
+from datetime import date
 
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
@@ -259,7 +258,7 @@ def get_transactions(
 
 @app.get("/transactions/{transaction_id}", response_model=TransactionResponse)
 def get_transaction(
-        transaction_id: int,
+        transaction_id: int = Path(gt=0, le=2_147_483_647),
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
 ):
@@ -286,6 +285,7 @@ def create_transaction(
         transaction: TransactionCreate,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
+
 ):
     category_name = resolve_transaction_category(
         transaction=transaction,
@@ -300,6 +300,7 @@ def create_transaction(
         description=transaction.description,
         type=transaction.type,
         user_id=current_user.id,
+        transaction_date=transaction.transaction_date or date.today(),
     )
 
     db.add(db_transaction)
@@ -311,8 +312,8 @@ def create_transaction(
 
 @app.put("/transactions/{transaction_id}", response_model=TransactionResponse)
 def update_transaction(
-        transaction_id: int,
         transaction: TransactionCreate,
+        transaction_id: int = Path(gt=0, le=2_147_483_647),
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
 ):
@@ -340,6 +341,9 @@ def update_transaction(
     db_transaction.description = transaction.description
     db_transaction.type = transaction.type
 
+    if transaction.transaction_date is not None:
+        db_transaction.transaction_date = transaction.transaction_date
+
     db.commit()
     db.refresh(db_transaction)
 
@@ -348,7 +352,7 @@ def update_transaction(
 
 @app.delete("/transactions/{transaction_id}")
 def delete_transaction(
-        transaction_id: int,
+        transaction_id: int = Path(gt=0, le=2_147_483_647),
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
 ):
