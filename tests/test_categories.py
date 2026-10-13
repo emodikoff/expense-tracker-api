@@ -1088,3 +1088,309 @@ def test_update_transaction_with_mismatched_category_type(authenticated_client, 
     assert db_transaction.category_id is None
     assert db_transaction.type == "expense"
     assert db_transaction.description == "Monthly training"
+
+
+def test_renaming_category_preserves_transaction_snapshot(authenticated_client, db_session):
+    create_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert create_response.status_code == 201
+    category_id = create_response.json()["id"]
+
+    transaction_response = authenticated_client.post(
+        "/transactions",
+        json={
+            "amount": 70,
+            "category": "Muay Thai",
+            "category_id": category_id,
+            "description": "Monthly training",
+            "type": "expense",
+        },
+    )
+
+    assert transaction_response.status_code == 200
+    transaction_id = transaction_response.json()["id"]
+
+    update_response = authenticated_client.put(
+        f"/categories/{category_id}",
+        json={
+            "name": "Martial arts",
+            "type": "expense",
+        },
+    )
+
+    assert update_response.status_code == 200
+
+    db_session.expire_all()
+
+    category = db_session.get(Category, category_id)
+    transaction = db_session.get(Transaction, transaction_id)
+
+    assert category is not None
+    assert category.name == "Martial arts"
+
+    assert transaction is not None
+    assert transaction.category_id == category_id
+    assert transaction.category == "Muay Thai"
+
+
+def test_create_transaction_with_category_id_only(authenticated_client, db_session):
+    category_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert category_response.status_code == 201
+    category_id = category_response.json()["id"]
+
+    transaction_response = authenticated_client.post(
+        "/transactions",
+        json={
+            "amount": 70,
+            "category_id": category_id,
+            "description": "Monthly training",
+            "type": "expense",
+        },
+    )
+
+    assert transaction_response.status_code == 200
+    data = transaction_response.json()
+
+    assert data["category"] == "Muay Thai"
+
+    db_session.expire_all()
+
+    transaction = db_session.get(Transaction, data["id"])
+
+    assert transaction is not None
+    assert transaction.category_id == category_id
+    assert transaction.category == "Muay Thai"
+
+
+def test_create_transaction_without_category(authenticated_client):
+    response = authenticated_client.post(
+        "/transactions",
+        json={
+            "amount": 70,
+            "description": "Monthly training",
+            "type": "expense",
+        },
+    )
+
+    assert response.status_code == 422
+
+
+def test_update_transaction_with_category_id_only(authenticated_client, db_session):
+    category_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert category_response.status_code == 201
+    category_id = category_response.json()["id"]
+
+    create_response = authenticated_client.post(
+        "/transactions",
+        json={
+            "amount": 70,
+            "category": "Training",
+            "description": "Old description",
+            "type": "expense",
+        },
+    )
+
+    assert create_response.status_code == 200
+    transaction_id = create_response.json()["id"]
+
+    update_response = authenticated_client.put(
+        f"/transactions/{transaction_id}",
+        json={
+            "amount": 80,
+            "category_id": category_id,
+            "description": "Montly training",
+            "type": "expense",
+        },
+    )
+
+    assert update_response.status_code == 200
+    data = update_response.json()
+
+    assert data["id"] == transaction_id
+    assert data["category"] == "Muay Thai"
+    assert data["amount"] == 80
+
+    db_session.expire_all()
+
+    db_transaction = db_session.get(Transaction, transaction_id)
+
+    assert db_transaction is not None
+    assert db_transaction.category_id == category_id
+    assert db_transaction.category == "Muay Thai"
+    assert float(db_transaction.amount) == 80
+
+
+def test_update_transaction_without_category(authenticated_client, db_session):
+    create_response = authenticated_client.post(
+        "/transactions",
+        json={
+            "amount": 70,
+            "category": "Training",
+            "description": "Monthly training",
+            "type": "expense",
+        },
+    )
+
+    assert create_response.status_code == 200
+    transaction_id = create_response.json()["id"]
+
+    update_response = authenticated_client.put(
+        f"/transactions/{transaction_id}",
+        json={
+            "amount": 80,
+            "description": "Update training",
+            "type": "expense",
+        },
+    )
+
+    assert update_response.status_code == 422
+
+    db_session.expire_all()
+    db_transaction = db_session.get(Transaction, transaction_id)
+
+    assert db_transaction is not None
+    assert float(db_transaction.amount) == 70
+    assert db_transaction.category == "Training"
+    assert db_transaction.category_id is None
+    assert db_transaction.description == "Monthly training"
+
+
+def test_transaction_response_includes_category_id(authenticated_client):
+    category_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert category_response.status_code == 201
+    category_id = category_response.json()["id"]
+
+    transaction_response = authenticated_client.post(
+        "/transactions",
+        json={
+            "amount": 70,
+            "category_id": category_id,
+            "description": "Monthly training",
+            "type": "expense",
+        },
+    )
+
+    assert transaction_response.status_code == 200
+
+    data = transaction_response.json()
+
+    assert data["category_id"] == category_id
+    assert data["category"] == "Muay Thai"
+
+
+def test_get_transaction_includes_category_id(authenticated_client):
+    category_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert category_response.status_code == 201
+    category_id = category_response.json()["id"]
+
+    create_response = authenticated_client.post(
+        "/transactions",
+        json={
+            "amount": 70,
+            "category_id": category_id,
+            "description": "Monthly training",
+            "type": "expense",
+        },
+    )
+
+    assert create_response.status_code == 200
+    transaction_id = create_response.json()["id"]
+
+    get_response = authenticated_client.get(f"/transactions/{transaction_id}")
+
+    assert get_response.status_code == 200
+
+    data = get_response.json()
+
+    assert data["id"] == transaction_id
+    assert data["category_id"] == category_id
+    assert data["category"] == "Muay Thai"
+
+
+def test_list_transactions_includes_category_id(authenticated_client):
+    category_response = authenticated_client.post(
+        "/categories",
+        json={
+            "name": "Muay Thai",
+            "type": "expense",
+        },
+    )
+
+    assert category_response.status_code == 201
+    category_id = category_response.json()["id"]
+
+    first_response = authenticated_client.post(
+        "/transactions",
+        json={
+            "amount": 70,
+            "category_id": category_id,
+            "description": "Monthly training",
+            "type": "expense",
+        },
+    )
+
+    assert first_response.status_code == 200
+
+    second_response = authenticated_client.post(
+        "/transactions",
+        json={
+            "amount": 30,
+            "category": "Transport",
+            "description": "Bus ticket",
+            "type": "expense",
+        },
+    )
+
+    response = authenticated_client.get("/transactions")
+
+    assert second_response.status_code == 200
+
+    transactions = response.json()
+
+    first_id = first_response.json()["id"]
+    second_id = second_response.json()["id"]
+
+    transaction_by_id = {
+        transaction["id"]: transaction
+        for transaction in transactions
+    }
+
+    assert transaction_by_id[first_id]["category_id"] == category_id
+    assert transaction_by_id[first_id]["category"] == "Muay Thai"
+
+    assert transaction_by_id[second_id]["category_id"] is None
+    assert transaction_by_id[second_id]["category"] == "Transport"

@@ -26,6 +26,7 @@ def resolve_transaction_category(
         current_user: User
 ) -> str:
     if transaction.category_id is None:
+        assert transaction.category is not None
         return transaction.category
 
     db_category = (

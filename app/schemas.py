@@ -1,19 +1,30 @@
-from pydantic import BaseModel, Field, EmailStr, field_validator
+from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
 from typing import Literal
 
 
 class TransactionCreate(BaseModel):
     amount: float = Field(gt=0)
-    category: str
+    category: str | None = None
     category_id: int | None = Field(default=None, gt=0)
     description: str
     type: Literal["income", "expense"]
+
+    @model_validator(mode="after")
+    def validate_category(self):
+        if self.category_id is None:
+            if self.category is None or not self.category.strip():
+                raise ValueError(
+                    "Either category or category_id must be provided"
+                )
+
+        return self
 
 
 class TransactionResponse(BaseModel):
     id: int
     amount: float
     category: str
+    category_id: int | None
     description: str
     type: Literal["income", "expense"]
 
