@@ -1,3 +1,5 @@
+from urllib import request
+
 from fastapi import FastAPI, Depends, HTTPException, Query
 from typing import Literal
 
@@ -7,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.schemas import TransactionCreate, TransactionResponse, TransactionSummary, CategoryResponse, CategoryCreate
 from app.database import get_db
-from app.models import User
+from app.models import User, Category
 from app.models import Transaction as TransactionModel
 from app.models import Category as CategoryModel
 from app.routers import auth
@@ -16,6 +18,41 @@ from app.dependencies import get_current_user
 app = FastAPI()
 
 app.include_router(auth.router)
+
+
+def resolve_transaction_category(
+        transaction: TransactionCreate,
+        db: Session,
+        current_user: User
+) -> str:
+    if transaction.category_id is None:
+        return transaction.category
+
+    db_category = (
+        db.query(CategoryModel)
+        .filter(
+            CategoryModel.id == transaction.category_id,
+            or_(
+                CategoryModel.user_id.is_(None),
+                CategoryModel.user_id == current_user.id
+            ),
+        )
+        .first()
+    )
+
+    if db_category is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Category not found",
+        )
+
+    if db_category.type != transaction.type:
+        raise HTTPException(
+            status_code=422,
+            detail="Category type does not match transaction type"
+        )
+
+    return db_category.name
 
 
 @app.get("/")
@@ -85,7 +122,7 @@ def create_category(
     return db_category
 
 
-@app.put("/categories/{category_id}",response_model=CategoryResponse)
+@app.put("/categories/{category_id}", response_model=CategoryResponse)
 def update_category(
         category_id: int,
         category: CategoryCreate,
@@ -249,9 +286,16 @@ def create_transaction(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
 ):
+    category_name = resolve_transaction_category(
+        transaction=transaction,
+        db=db,
+        current_user=current_user,
+    )
+
     db_transaction = TransactionModel(
         amount=transaction.amount,
-        category=transaction.category,
+        category=category_name,
+        category_id=transaction.category_id,
         description=transaction.description,
         type=transaction.type,
         user_id=current_user.id,
@@ -283,8 +327,15 @@ def update_transaction(
     if db_transaction is None:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
+    category_name = resolve_transaction_category(
+        transaction=transaction,
+        db=db,
+        current_user=current_user,
+    )
+
     db_transaction.amount = transaction.amount
-    db_transaction.category = transaction.category
+    db_transaction.category = category_name
+    db_transaction.category_id = transaction.category_id
     db_transaction.description = transaction.description
     db_transaction.type = transaction.type
 

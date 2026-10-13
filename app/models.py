@@ -23,6 +23,14 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True, index=True)
     amount = Column(Numeric(10, 2), nullable=False)
     category = Column(String, nullable=False)
+    category_id = Column(
+        Integer,
+        ForeignKey("categories.id",
+                   name="fk_transactions_category_id",
+                   ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
     description = Column(String, nullable=False)
     type = Column(String, nullable=False)
 
@@ -34,6 +42,8 @@ class Transaction(Base):
     )
 
     user = relationship("User", back_populates="transactions")
+
+    category_ref = relationship("Category", foreign_keys=[category_id])
 
 
 class User(Base):

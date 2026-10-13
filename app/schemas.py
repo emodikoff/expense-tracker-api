@@ -5,6 +5,7 @@ from typing import Literal
 class TransactionCreate(BaseModel):
     amount: float = Field(gt=0)
     category: str
+    category_id: int | None = Field(default=None, gt=0)
     description: str
     type: Literal["income", "expense"]
 
