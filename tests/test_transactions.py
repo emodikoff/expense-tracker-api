@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 
 
@@ -49,8 +51,8 @@ def test_get_transaction(authenticated_client):
         transaction["category"]: transaction for transaction in data
     }
 
-    assert transaction_by_category["food"]["amount"] == 42.50
-    assert transaction_by_category["salary"]["amount"] == 100
+    assert transaction_by_category["food"]["amount"] == "42.50"
+    assert transaction_by_category["salary"]["amount"] == "100.00"
 
 
 def test_transaction_with_invalid_amount(authenticated_client):
@@ -124,7 +126,7 @@ def test_update_transaction(authenticated_client):
     update_response = authenticated_client.put(
         f"/transactions/{transaction_id}",
         json={
-            "amount": 40,
+            "amount": "40",
             "category": "food",
             "description": "Update transaction",
             "type": "expense",
@@ -135,7 +137,7 @@ def test_update_transaction(authenticated_client):
 
     data = update_response.json()
     assert data["id"] == transaction_id
-    assert data["amount"] == 40
+    assert data["amount"] == "40.00"
     assert data["category"] == "food"
     assert data["description"] == "Update transaction"
 
@@ -201,7 +203,7 @@ def test_get_transaction_with_pagination(authenticated_client):
     assert response.status_code == 200
     data = response.json()
     assert len(data) == 1
-    assert data[0]["amount"] == 20
+    assert data[0]["amount"] == "20.00"
 
 
 def test_get_transactions_with_invalid_pagination(authenticated_client):
@@ -236,7 +238,7 @@ def test_filter_transaction_by_type(authenticated_client):
     data = response.json()
     assert len(data) == 1
     assert data[0]["type"] == "expense"
-    assert data[0]["amount"] == 50
+    assert data[0]["amount"] == "50.00"
 
 
 def test_filter_transaction_by_category(authenticated_client):
@@ -265,7 +267,7 @@ def test_filter_transaction_by_category(authenticated_client):
     data = response.json()
     assert len(data) == 1
     assert data[0]["category"] == "food"
-    assert data[0]["amount"] == 50
+    assert data[0]["amount"] == "50.00"
 
 
 def test_filter_transaction_with_invalid_type(authenticated_client):
@@ -310,7 +312,7 @@ def test_filter_transaction_by_type_and_category(authenticated_client):
     assert len(data) == 1
     assert data[0]["type"] == "expense"
     assert data[0]["category"] == "food"
-    assert data[0]["amount"] == 50
+    assert data[0]["amount"] == "50.00"
 
 
 def test_transaction_summary(authenticated_client):
@@ -343,19 +345,18 @@ def test_transaction_summary(authenticated_client):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["total_income"] == 1500
-    assert data["total_expenses"] == 300
-    assert data["balance"] == 1200
-
+    assert Decimal(data["total_income"]) == Decimal("1500.00")
+    assert Decimal(data["total_expenses"]) == Decimal("300.00")
+    assert Decimal(data["balance"]) == Decimal("1200.00")
 
 def test_transaction_summary_with_empty_db(authenticated_client):
     response = authenticated_client.get("/transactions/summary")
 
     assert response.status_code == 200
     data = response.json()
-    assert data["total_income"] == 0
-    assert data["total_expenses"] == 0
-    assert data["balance"] == 0
+    assert Decimal(data["total_income"]) == Decimal("0")
+    assert Decimal(data["total_expenses"]) == Decimal("0")
+    assert Decimal(data["balance"]) == Decimal("0")
 
 
 def test_update_nonexistent_transaction_with_date_returns_404(authenticated_client):

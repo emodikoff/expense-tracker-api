@@ -5,6 +5,8 @@ import pytest
 from app.models import User, Transaction
 from app.security import create_access_token
 from sqlalchemy import update
+from decimal import Decimal
+
 
 def test_monthly_analytics_calculates_correct_totals(authenticated_client):
     transactions = [
@@ -52,9 +54,9 @@ def test_monthly_analytics_calculates_correct_totals(authenticated_client):
 
     assert data["year"] == 2026
     assert data["month"] == 10
-    assert data["total_income"] == 3000
-    assert data["total_expenses"] == 700
-    assert data["balance"] == 2300
+    assert Decimal(data["total_income"]) == Decimal("3000.00")
+    assert Decimal(data["total_expenses"]) == Decimal("700.00")
+    assert Decimal(data["balance"]) == Decimal("2300.00")
 
 
 def test_monthly_analytics_with_no_transactions(authenticated_client):
@@ -67,13 +69,16 @@ def test_monthly_analytics_with_no_transactions(authenticated_client):
 
     data = response.json()
 
-    assert data == {
-        "year": 2026,
-        "month": 2,
-        "total_income": 0,
-        "total_expenses": 0,
-        "balance": 0,
-    }
+    assert data["year"] == 2026
+    assert data["month"] == 2
+
+    assert isinstance(data["total_income"], str)
+    assert isinstance(data["total_expenses"], str)
+    assert isinstance(data["balance"], str)
+
+    assert Decimal(data["total_income"]) == Decimal("0")
+    assert Decimal(data["total_expenses"]) == Decimal("0")
+    assert Decimal(data["balance"]) == Decimal("0")
 
 
 def test_monthly_analytics_december_year_boundry(authenticated_client):
@@ -110,9 +115,9 @@ def test_monthly_analytics_december_year_boundry(authenticated_client):
 
     data = response.json()
 
-    assert data["total_income"] == 3000
-    assert data["total_expenses"] == 0
-    assert data["balance"] == 3000
+    assert Decimal(data["total_income"]) == Decimal("3000.00")
+    assert Decimal(data["total_expenses"]) == Decimal("0")
+    assert Decimal(data["balance"]) == Decimal("3000.00")
 
 
 def test_monthly_analytics_only_includes_current_user(client, db_session):
@@ -161,9 +166,9 @@ def test_monthly_analytics_only_includes_current_user(client, db_session):
 
     data = response.json()
 
-    assert data["total_income"] == 3000
-    assert data["total_expenses"] == 0
-    assert data["balance"] == 3000
+    assert Decimal(data["total_income"]) == Decimal("3000.00")
+    assert Decimal(data["total_expenses"]) == Decimal("0")
+    assert Decimal(data["balance"]) == Decimal("3000.00")
 
 
 @pytest.mark.parametrize(
@@ -239,7 +244,77 @@ def test_monthly_analytics_excludes_transactions_without_date(
 
     data = response.json()
 
-    assert data["total_income"] == 500
-    assert data["total_expenses"] == 0
-    assert data["balance"] == 500
+    assert Decimal(data["total_income"]) == Decimal("500.00")
+    assert Decimal(data["total_expenses"]) == Decimal("0")
+    assert Decimal(data["balance"]) == Decimal("500.00")
 
+
+def test_monthly_analytics_preserves_decimal_precision(
+        authenticated_client,
+):
+    for amount in ["0.10", "0.20"]:
+        response = authenticated_client.post(
+            "/transactions",
+            json={
+                "amount": amount,
+                "category": "Food",
+                "description": "Decimal precision test",
+                "type": "expense",
+                "transaction_date": "2026-10-10",
+            },
+        )
+
+        assert response.status_code == 200, response.json()
+
+    response = authenticated_client.get(
+        "/transactions/analytics/monthly",
+        params={"year": 2026, "month": 10},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert isinstance(data["total_expenses"], str)
+    assert isinstance(data["balance"], str)
+
+    assert Decimal(data["total_expenses"]) == Decimal("0.30")
+    assert Decimal(data["balance"]) == Decimal("-0.30")
+
+
+def test_monthly_analytics_large_decimal_amounts(
+        authenticated_client,
+):
+    amounts = [
+        "12345678.91",
+        "12345678.92",
+        "0.17",
+    ]
+
+    for amount in amounts:
+        response = authenticated_client.post(
+            "/transactions",
+            json={
+                "amount": amount,
+                "category": "Salary",
+                "description": "Large decimal precision test",
+                "type": "income",
+                "transaction_date": "2026-10-10",
+            },
+        )
+
+        assert response.status_code == 200, response.json()
+
+    response = authenticated_client.get(
+        "/transactions/analytics/monthly",
+        params={"year": 2026, "month": 10},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert isinstance(data["total_income"], str)
+    assert Decimal(data["total_income"]) == Decimal("24691358.00")
+    assert Decimal(data["total_expenses"]) == Decimal("0")
+    assert Decimal(data["balance"]) == Decimal("24691358.00")

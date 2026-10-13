@@ -65,7 +65,7 @@ def test_update_transaction_preserves_date(authenticated_client):
 
     assert update_response.status_code == 200
     assert update_response.json()["transaction_date"] == "2026-09-15"
-    assert update_response.json()["amount"] == 80
+    assert update_response.json()["amount"] == "80.00"
 
 
 def test_update_transaction_change_date(authenticated_client):

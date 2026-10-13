@@ -1,10 +1,14 @@
 from pydantic import BaseModel, Field, EmailStr, field_validator, model_validator
 from typing import Literal
 from datetime import date
-
+from decimal import Decimal
 
 class TransactionCreate(BaseModel):
-    amount: float = Field(gt=0)
+    amount: Decimal = Field(
+        gt=0,
+        max_digits=10,
+        decimal_places=2,
+    )
     category: str | None = None
     category_id: int | None = Field(default=None, gt=0)
     description: str
@@ -24,7 +28,7 @@ class TransactionCreate(BaseModel):
 
 class TransactionResponse(BaseModel):
     id: int
-    amount: float
+    amount: Decimal
     category: str
     category_id: int | None
     description: str
@@ -33,9 +37,9 @@ class TransactionResponse(BaseModel):
 
 
 class TransactionSummary(BaseModel):
-    total_income: float
-    total_expenses: float
-    balance: float
+    total_income: Decimal
+    total_expenses: Decimal
+    balance: Decimal
 
 
 class CategoryResponse(BaseModel):
@@ -77,18 +81,18 @@ class CategoryCreate(BaseModel):
 class MonthlyTransactionSummary(BaseModel):
     year: int
     month: int
-    total_income: float
-    total_expenses: float
-    balance: float
+    total_income: Decimal
+    total_expenses: Decimal
+    balance: Decimal
 
 
 class CategoryExpenseSummary(BaseModel):
     category: str
-    total: float
+    total: Decimal
 
 
 class MonthlyCategoryExpenseSummary(BaseModel):
     year: int
     month: int
-    total_expenses: float
+    total_expenses: Decimal
     categories: list[CategoryExpenseSummary]

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import jwt
 
 from datetime import datetime, timedelta, timezone
@@ -676,17 +678,17 @@ def test_users_have_separate_transaction_summaries(client):
     assert alice_summary.status_code == 200
     assert bob_summary.status_code == 200
 
-    assert alice_summary.json() == {
-        "total_income": 5000,
-        "total_expenses": 2000,
-        "balance": 3000,
-    }
+    alice_data = alice_summary.json()
 
-    assert bob_summary.json() == {
-        "total_income": 10000,
-        "total_expenses": 4000,
-        "balance": 6000,
-    }
+    assert Decimal(alice_data["total_income"]) == Decimal("5000.00")
+    assert Decimal(alice_data["total_expenses"]) == Decimal("2000.00")
+    assert Decimal(alice_data["balance"]) == Decimal("3000.00")
+
+    bob_data = bob_summary.json()
+
+    assert Decimal(bob_data["total_income"]) == Decimal("10000.00")
+    assert Decimal(bob_data["total_expenses"]) == Decimal("4000.00")
+    assert Decimal(bob_data["balance"]) == Decimal("6000.00")
 
 
 def test_get_current_user_with_missing_exp(client):

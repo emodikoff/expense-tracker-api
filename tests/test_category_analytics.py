@@ -1,6 +1,7 @@
 import email
 import json
 from datetime import date
+from decimal import Decimal
 
 from app.models import User, Transaction
 from app.routers import categories
@@ -64,11 +65,11 @@ def test_monthly_expenses_grouped_by_category(authenticated_client):
 
     assert data["year"] == 2026
     assert data["month"] == 10
-    assert data["total_expenses"] == 450.0
+    assert Decimal(data["total_expenses"]) == Decimal("450.00")
 
     assert data["categories"] == [
-        {"category": "Food", "total": 300.0},
-        {"category": "Muay Thai", "total": 150.0},
+        {"category": "Food", "total": "300.00"},
+        {"category": "Muay Thai", "total": "150.00"},
     ]
 
 
@@ -109,9 +110,9 @@ def test_category_analytics_preserves_deleted_category(
 
     data = response.json()
 
-    assert data["total_expenses"] == 250.0
+    assert Decimal(data["total_expenses"]) == Decimal("250.00")
     assert data["categories"] == [
-        {"category": "Food", "total": 250.0},
+        {"category": "Food", "total": "250.00"},
     ]
 
 
@@ -123,12 +124,12 @@ def test_category_analytics_empty_month(authenticated_client):
 
     assert response.status_code == 200
 
-    assert response.json() == {
-        "year": 2026,
-        "month": 2,
-        "total_expenses": 0.0,
-        "categories": [],
-    }
+    data = response.json()
+    assert data["year"] == 2026
+    assert data["month"] == 2
+    assert isinstance(data["total_expenses"], str)
+    assert Decimal(data["total_expenses"]) == Decimal("0")
+    assert data["categories"] == []
 
 
 def test_category_analytics_only_includes_current_user(
@@ -180,11 +181,12 @@ def test_category_analytics_only_includes_current_user(
 
     assert response.status_code == 200, response.json()
 
-    assert response.json() == {
-        "year": 2026,
-        "month": 10,
-        "total_expenses": 300.0,
-        "categories": [
-            {"category": "Food", "total": 300.0},
-        ],
-    }
+    data = response.json()
+
+    assert data["year"] == 2026
+    assert data["month"] == 10
+    assert Decimal(data["total_expenses"]) == Decimal("300.00")
+
+    assert data["categories"] == [
+        {"category": "Food", "total": "300.00"},
+    ]

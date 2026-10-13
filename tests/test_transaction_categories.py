@@ -317,7 +317,7 @@ def test_update_transaction_change_category(authenticated_client, db_session):
     data = update_response.json()
 
     assert data["id"] == transaction_id
-    assert data["amount"] == 80
+    assert data["amount"] == "80.00"
     assert data["category"] == "Gym"
     assert data["description"] == "Gym membership"
 
@@ -619,7 +619,7 @@ def test_update_transaction_with_category_id_only(authenticated_client, db_sessi
         json={
             "amount": 80,
             "category_id": category_id,
-            "description": "Montly training",
+            "description": "Monthly training",
             "type": "expense",
         },
     )
@@ -629,7 +629,7 @@ def test_update_transaction_with_category_id_only(authenticated_client, db_sessi
 
     assert data["id"] == transaction_id
     assert data["category"] == "Muay Thai"
-    assert data["amount"] == 80
+    assert data["amount"] == "80.00"
 
     db_session.expire_all()
 
