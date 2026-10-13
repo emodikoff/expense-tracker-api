@@ -72,3 +72,11 @@ class CategoryCreate(BaseModel):
             raise ValueError("Category name cannot be empty")
 
         return name
+
+
+class MonthlyTransactionSummary(BaseModel):
+    year: int
+    month: int
+    total_income: float
+    total_expenses: float
+    balance: float
