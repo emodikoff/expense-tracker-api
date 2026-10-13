@@ -8,7 +8,8 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import User
 from app.models import Transaction as TransactionModel
-from app.schemas import TransactionSummary, MonthlyTransactionSummary
+from app.schemas import TransactionSummary, MonthlyTransactionSummary, MonthlyCategoryExpenseSummary
+from app.services.analytics import get_month_date_range
 
 router = APIRouter(
     prefix="/transactions",
@@ -56,18 +57,7 @@ def get_monthly_transaction_summary(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user),
 ):
-    if year == 9999 and month == 12:
-        raise HTTPException(
-            status_code=422,
-            detail="Year and month are outside the supported range",
-        )
-
-    start_date = date(year, month, 1)
-
-    if month == 12:
-        end_date = date(year + 1, 1, 1)
-    else:
-        end_date = date(year, month + 1, 1)
+    start_date, end_date = get_month_date_range(year, month)
 
     totals = (
         db.query(
@@ -110,4 +100,50 @@ def get_monthly_transaction_summary(
         "total_income": totals.total_income,
         "total_expenses": totals.total_expenses,
         "balance": totals.total_income - totals.total_expenses,
+    }
+
+
+@router.get(
+    "/analytics/categories",
+    response_model=MonthlyCategoryExpenseSummary,
+)
+def get_monthly_expenses_by_category(
+        year: int = Query(ge=1, le=9999),
+        month: int = Query(ge=1, le=12),
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user),
+):
+    start_date, end_date = get_month_date_range(year, month)
+
+    results = (
+        db.query(
+            TransactionModel.category,
+            func.sum(TransactionModel.amount).label("total"),
+        )
+        .filter(
+            TransactionModel.user_id == current_user.id,
+            TransactionModel.type == "expense",
+            TransactionModel.transaction_date >= start_date,
+            TransactionModel.transaction_date < end_date,
+        )
+        .group_by(TransactionModel.category)
+        .order_by(func.sum(TransactionModel.amount).desc())
+        .all()
+    )
+
+    categories = [
+        {
+            "category": row.category,
+            "total": row.total,
+        }
+        for row in results
+    ]
+
+    total_expenses = sum(row.total for row in results)
+
+    return {
+        "year": year,
+        "month": month,
+        "total_expenses": total_expenses,
+        "categories": categories,
     }

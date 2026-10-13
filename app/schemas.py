@@ -80,3 +80,15 @@ class MonthlyTransactionSummary(BaseModel):
     total_income: float
     total_expenses: float
     balance: float
+
+
+class CategoryExpenseSummary(BaseModel):
+    category: str
+    total: float
+
+
+class MonthlyCategoryExpenseSummary(BaseModel):
+    year: int
+    month: int
+    total_expenses: float
+    categories: list[CategoryExpenseSummary]
