@@ -21,12 +21,17 @@ class Transaction(Base):
             "amount > 0",
             name="check_transaction_amount_positive"
         ),
+        Index(
+            "ix_transactions_user_date",
+            "user_id",
+            "transaction_date",
+        ),
     )
 
     id = Column(
         Integer,
         primary_key=True,
-        index=True)
+    )
     amount = Column(
         Numeric(10, 2),
         nullable=False)
