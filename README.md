@@ -110,6 +110,17 @@ FastAPI automatically generates interactive API documentation:
 - `/docs` — Swagger UI
 - `/redoc` — ReDoc
 
+## Health Checks
+
+The API provides two health endpoints:
+
+- `GET /health/live` — checks whether the API process is responding.
+- `GET /health/ready` — checks whether PostgreSQL is accessible.
+
+The readiness endpoint returns HTTP 503 when the database is unavailable.
+
+Docker Compose uses the liveness endpoint to monitor the API container.
+
 ## Database Migrations
 
 Database schema changes are managed using Alembic.
