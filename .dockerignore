@@ -1,0 +1,10 @@
+.venv/
+.git/
+.idea/
+.pytest_cache/
+__pycache__/
+*.pyc
+.env
+.env.*
+!.env.example
+.env.docker
