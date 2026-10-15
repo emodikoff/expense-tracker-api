@@ -56,3 +56,12 @@ jobs:
 
       - name: Run tests
         run: python -m pytest -q
+
+      - name: Validate Alembic migrations
+        run: |
+          alembic upgrade head
+          alembic current --check-heads
+          alembic check
+
+      - name: Build Docker image
+        run: docker build -t expense-tracker-api:ci .
