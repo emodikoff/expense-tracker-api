@@ -16,6 +16,12 @@ ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("JWT_ACCESS_TOKEN_EXPIRE_MINUTES", "
 if not SECRET_KEY:
     raise RuntimeError("JWT_SECRET_KEY not set")
 
+if ALGORITHM != "HS256":
+    raise RuntimeError("Only HS256 algorithm is supported")
+
+if ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
+    raise RuntimeError("JWT_ACCESS_TOKEN_EXPIRE_MINUTES must be positive")
+
 
 def hash_password(password: str) -> str:
     return password_hash.hash(password)
